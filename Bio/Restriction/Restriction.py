@@ -2046,27 +2046,33 @@ class RestrictionBatch(set):
             #TODO - Why does this happen!
             #Try the "doctest" at the start of PrintFormat.py
             self.already_mapped = None
-        if isinstance(dna, DNA):
-            # For the searching, we just care about the sequence as a string,
-            # if that is the same we can use the cached search results.
-            # At the time of writing, Seq == method isn't implemented,
-            # and therefore does object identity which is stricter.
-            if (str(dna), linear) == self.already_mapped:
-                return self.mapping
-            else:
-                self.already_mapped = str(dna), linear
-                fseq = FormattedSeq(dna, linear)
-                self.mapping = dict([(x, x.search(fseq)) for x in self])
-                return self.mapping
-        elif isinstance(dna, FormattedSeq):
-            if (str(dna), dna.linear) == self.already_mapped:
-                return self.mapping
-            else:
-                self.already_mapped = str(dna), dna.linear
-                self.mapping = dict([(x, x.search(dna)) for x in self])
-                return self.mapping
-        raise TypeError("Expected Seq or MutableSeq instance, got %s instead"
-                        %type(dna))
+        VALID_TYPES_TO_SEARCH = (DNA, FormattedSeq)
+        if not isinstance(dna, VALID_TYPES_TO_SEARCH):
+            raise TypeError(
+                    "Expected Seq or FormattedSeq instance, got %s instead" %
+                    type(dna))
+
+        # Disambiguate linear.
+        if isinstance(dna, FormattedSeq):
+            is_linear = dna.linear
+        else:
+            is_linear = linear
+
+        # For the searching, we just care about the sequence as a string,
+        # if that is the same we can use the cached search results.
+        # At the time of writing, Seq == method isn't implemented,
+        # and therefore does object identity which is stricter.
+        if (str(dna), is_linear) == self.already_mapped:
+            return self.mapping
+
+        # Not cached, perform mapping and cache.
+        if isinstance(dna, FormattedSeq):
+            fseq = dna
+        else:
+            fseq = FormattedSeq(dna, linear)
+        self.already_mapped = str(dna), is_linear
+        self.mapping = dict([(x, x.search(fseq)) for x in self])
+        return self.mapping
 
 ###############################################################################
 #                                                                             #
